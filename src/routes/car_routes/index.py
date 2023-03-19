@@ -5,6 +5,7 @@ from src.models.pydantic_models.car.car_base import CarBase
 from src.models.pydantic_models.car.car_update import CarUpdate
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from src.controllers.car_controller import CarController
 
 cars_router = APIRouter()
 
@@ -15,36 +16,25 @@ async def list_all_cars(request: Request,
                         max_price: int = Query(100000),
                         brand: Optional[str] = Query(None),
                         page: int = Query(1)) -> List[CarDB]:
-    pass
-    results_per_page = 25
-    skip = (page - 1) * results_per_page
-    query = {"price": {"$gt": min_price, "$lt": max_price}}
-
-    if brand:
-        query["brand"] = brand
-
-    full_query = request.app.mongo.database()['cars1'].find(query).sort("_id", -1).skip(skip).limit(results_per_page)
-
-    results = [CarDB(**raw_car) async for raw_car in full_query]
-
-    # this is also possible
-    # results = await full_query.to_list(1000
-    return results
+    all_cars: List[CarDB] = await CarController.list_all_cars(request=request,
+                                                              min_price=min_price,
+                                                              max_price=max_price,
+                                                              brand=brand, page=page)
+    return all_cars
 
 
 @cars_router.post("/", status_code=status.HTTP_201_CREATED, response_description="Add new car")
 async def create_car(request: Request, car: CarBase = Body(...)):
-    car = jsonable_encoder(car)
-    new_car = await request.app.mongo.database()['cars1'].insert_one(car)
-    created_car = await request.app.mongo.database()['cars1'].find_one({"_id": new_car.inserted_id})
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=created_car)
+    if created_car := await CarController.create_car(request=request, car=car):
+        return JSONResponse(status_code=status.HTTP_201_CREATED, content=created_car)
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
 
 @cars_router.get("/{id}", status_code=status.HTTP_200_OK, response_description="get a single car")
 async def get_car_by_id(request: Request, id: str = Path(...)):
     if (car := await request.app.mongo.database()['cars1'].find_one({"_id": id})) is not None:
         return CarDB(**car)
-    raise HTTPException(status_code=404, detail=f"Car with id {id} not found")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Car with id {id} not found")
 
 
 @cars_router.put("/{id}", response_description="update car")
