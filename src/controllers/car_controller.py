@@ -2,6 +2,7 @@ from fastapi import Request, Query
 from typing import Optional, List
 from src.models.pydantic_models.car.car_db import CarDB
 from src.models.pydantic_models.car.car_base import CarBase
+from src.models.pydantic_models.car.car_update import CarUpdate
 from fastapi.encoders import jsonable_encoder
 
 
@@ -37,4 +38,17 @@ class CarController:
     async def get_car_by_id(request: Request, id: str):
         if (car := await request.app.mongo.database()['cars1'].find_one({"_id": id})) is not None:
             return CarDB(**car)
+
+    @staticmethod
+    async def update_car(request: Request, id: str, car: CarUpdate):
+        await request.app.mongo.database()['cars1'].update_one({"_id": id}, {"$set": car.dict(exclude_unset=True)})
+        if (updated_car := await request.app.mongo.database()['cars1'].find_one({"_id": id})) is not None:
+            return CarDB(**updated_car)
+
+    @staticmethod
+    async def delete_car(request: Request, id: str) -> bool:
+        delete_result = await request.app.mongo.database()['cars1'].delete_one({"_id": id})
+        if delete_result.deleted_count == 1:
+            return True
+        return False
 

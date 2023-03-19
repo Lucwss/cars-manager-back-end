@@ -39,16 +39,15 @@ async def get_car_by_id(request: Request, id: str = Path(...)):
 
 @cars_router.put("/{id}", response_description="update car")
 async def update_car(request: Request, id: str = Path(...), car: CarUpdate = Body(...)):
-    await request.app.mongo.database()['cars1'].update_one({"_id": id}, {"$set": car.dict(exclude_unset=True)})
-    if (car := await request.app.mongo.database()['cars1'].find_one({"_id": id})) is not None:
-        return CarDB(**car)
+    if (car := await CarController.update_car(request=request, id=id, car=car)) is not None:
+        return JSONResponse(status_code=status.HTTP_200_OK, content=CarParser.parse_car(car))
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Car with {id} not found")
 
 
 @cars_router.delete("/{id}", response_description="delete car")
 async def delete_car(request: Request, id: str = Path(...)):
-    delete_result = await request.app.mongo.database()['cars1'].delete_one({"_id": id})
-    if delete_result.deleted_count == 1:
+    delete_result = await CarController.delete_car(request=request, id=id)
+    if delete_result:
         return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Car with {id} not found")
 
