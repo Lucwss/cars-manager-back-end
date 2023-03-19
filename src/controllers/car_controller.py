@@ -32,3 +32,9 @@ class CarController:
         new_car = await request.app.mongo.database()['cars1'].insert_one(car)
         created_car = await request.app.mongo.database()['cars1'].find_one({"_id": new_car.inserted_id})
         return created_car
+
+    @staticmethod
+    async def get_car_by_id(request: Request, id: str):
+        if (car := await request.app.mongo.database()['cars1'].find_one({"_id": id})) is not None:
+            return CarDB(**car)
+

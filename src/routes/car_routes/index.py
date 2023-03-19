@@ -3,7 +3,7 @@ from typing import Optional, List
 from src.models.pydantic_models.car.car_db import CarDB
 from src.models.pydantic_models.car.car_base import CarBase
 from src.models.pydantic_models.car.car_update import CarUpdate
-from fastapi.encoders import jsonable_encoder
+from src.utils.parsers.car_parsers import CarParser
 from fastapi.responses import JSONResponse
 from src.controllers.car_controller import CarController
 
@@ -32,8 +32,8 @@ async def create_car(request: Request, car: CarBase = Body(...)):
 
 @cars_router.get("/{id}", status_code=status.HTTP_200_OK, response_description="get a single car")
 async def get_car_by_id(request: Request, id: str = Path(...)):
-    if (car := await request.app.mongo.database()['cars1'].find_one({"_id": id})) is not None:
-        return CarDB(**car)
+    if (car := await CarController.get_car_by_id(request=request, id=id)) is not None:
+        return JSONResponse(status_code=status.HTTP_200_OK, content=CarParser.parse_car(car))
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Car with id {id} not found")
 
 
